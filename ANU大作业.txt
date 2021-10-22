@@ -1,0 +1,699 @@
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <map>
+#include <queue>
+#include <stdlib.h>
+#include <stack>
+#include <string>
+#include <time.h>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+using namespace std;
+int idxt = 0, idxa = 0, idx_reader;
+
+const int MAX = 1e5;
+
+void print() {
+    cout << "****************************************\n";
+}
+struct Date {
+    int yy, mm, dd;
+};
+
+class Book {
+    friend class Reader;
+    friend class Library;
+private:
+    int ID;
+    Date borrow_date;
+    Date due_date;
+    static int idnow;
+    string reader;
+public:
+    double price;
+    bool available;
+    string title;
+    string author;
+    Book(string t, string a, double p) {
+        ID = idnow++;
+        title = t;
+        author = a;
+        price = p;
+        available = true;
+    }
+    void print() {
+        cout << "****************************************\n";
+        cout << "The book's information are as follows: \n";
+        cout << "ID: " << ID << "\n";
+        cout << "Title: " << title << "\n";
+        cout << "Author: " << author << "\n";
+        cout << "Price: " << price << "\n";
+        if (available) {
+            cout << "The book can be borrowed now!\n";
+        }
+        else {
+            cout << "The book can not be borrowed now!\n";
+        }
+        cout << "****************************************\n";
+    }
+};
+
+vector<Book *> ERROR;
+
+int Book::idnow = 1;
+
+typedef pair<int, vector<Book*>> PIV;
+typedef pair<string, string> PSS;
+typedef pair<int, int> PII;
+typedef pair<int, Book*> PIB;
+
+class Library {
+private:
+    string password;
+public:
+    Library(string pass){
+        password = pass;
+    }
+    PIV author[MAX][100];
+    PIV book_title[MAX][100];
+    void add();
+    friend class Reader;
+    void insert_by_tittle(Book* ptr);
+    void insert_by_author(Book* ptr);
+    vector<Book*>& query_by_title(string title);
+    vector<Book*>& query_by_author(string author);
+    void get_detail(string, string);
+    bool check_identity(string);
+};
+
+Library library("zrj");
+
+class Reader {
+    friend Book;
+    friend Library;
+public:
+    Reader(string name_, int id) {
+        name = name_;
+        ID = id;
+    }
+    void check();
+    void return_book(string s);
+    void borrow_book(string s);
+    void find_book_title(string s);
+    void find_book_author(string s);
+private:
+    int ID;
+    int telephone;
+    string name;
+    vector<Book*> borrow_book_list;
+};
+
+const time_t t = time(NULL);
+struct tm timeinfo;
+const time_t now = time(NULL);
+struct tm* current_time = localtime(&t);
+
+void Reader::check()
+{
+    if (borrow_book_list.size() == 0)
+        cout << "You have not borrowed any book yet! " << endl;
+    else
+    {
+        cout << "That is all the books you borrowed:" << endl;
+        for (auto it : borrow_book_list)
+        {
+            cout << (*it).title << " ,And its due date is " << current_time->tm_year+1900 << "-" << current_time->tm_mon+2 << "-" << current_time->tm_wday+28 << endl;
+        }
+    }
+    cout << endl;
+}
+
+void Reader::borrow_book(string s)
+{
+    bool flag = 0;
+    vector<Book*> book = library.query_by_title(s);
+    if (book.size() == 0){
+        cout << "Sorry we do not have this book!" << endl;
+        return;
+        }
+    else
+    {
+        for (auto it = book.begin(); it != book.end(); ++it)
+        {
+            if ((*it)->available == true)
+            {
+                flag = 1;
+                (*it)->available = false;
+                borrow_book_list.push_back(*it);
+                Date bo, re;
+                bo.dd = current_time->tm_wday;
+                bo.mm = current_time->tm_mon;
+                bo.yy = current_time->tm_year;
+                re.dd = current_time->tm_wday;
+                re.mm = current_time->tm_mon + 1;
+                re.yy = current_time->tm_year;
+                (*it)->borrow_date = bo; (*it)->due_date = re;
+                (*it)->borrow_date.dd = bo.dd;
+                (*it)->borrow_date.yy = bo.yy;
+                (*it)->borrow_date.mm = bo.mm;
+                (*it)->due_date.dd = re.dd;
+                (*it)->due_date.mm = re.mm;
+                (*it)->due_date.yy = re.yy;
+                printf("The time now is：%d-%d-%d %d:%d:%d\n",
+                    current_time->tm_year + 1900,
+                    current_time->tm_mon + 1,
+                    current_time->tm_mday,
+                    current_time->tm_hour,
+                    current_time->tm_min,
+                    current_time->tm_sec);
+                cout << "You may as well return your book a month later!" << endl;
+                cout << "You are supposed to return your book before ";
+                printf("%d-%d-%d %d:%d:%d\n",
+                    current_time->tm_year + 1900,
+                    current_time->tm_mon + 2,
+                    current_time->tm_mday,
+                    current_time->tm_hour,
+                    current_time->tm_min,
+                    current_time->tm_sec);
+                cout << "Borrowed successfully!" << endl;
+                break;
+            }
+        }
+    }
+    if (flag == 0)
+        cout << "All of this books are borrowed!" << endl;
+}
+
+void Reader::return_book(string s)
+{
+    bool flag = 0;
+    for (auto it = borrow_book_list.begin(); it != borrow_book_list.end(); ++it)
+    {
+        if ((*it)->title == s)
+        {
+            flag = 1;
+            (*it)->available = true;
+            borrow_book_list.erase(it);
+            cout << "Returned successfully!" << endl;
+            return;
+        }
+    }
+    if (flag == 0)
+        cout << "You have not borrowed this book!" << endl;
+}
+
+void Library::add()
+{
+    cout << "Please give this book's title,author and number and its price!" << endl;
+    cout << "(one line by one line,4 lines please!" << endl;
+    string t, a; int n; float p;
+    getchar();
+    getline(cin, t);
+    getline(cin, a);
+    cin >> n >> p;
+    getchar();
+    while (n--)
+    {
+        Book* x = new Book(t, a, p);
+        insert_by_author(x);
+        insert_by_tittle(x);
+    }
+    cout<<"Added successfully!";cout<<endl;
+    cout << endl;
+}
+
+void Library::insert_by_author(Book* ptr)
+{
+    int p = 0, u;
+    string& str = ptr->author;
+    for (int i = 0; str[i]; i++)
+    {
+        u = str[i] - ' ';
+        if (!author[p][u].first) author[p][u].first = ++idxa;
+        p = author[p][u].first;
+    }
+    author[p][u].second.push_back(ptr);
+}
+
+void Library::insert_by_tittle(Book* ptr)
+{
+    int p = 0, u;
+    string& str = ptr->title;
+    for (int i = 0; str[i]; i++)
+    {
+        u = str[i] - ' ';
+        if (!book_title[p][u].first) book_title[p][u].first = ++idxt;
+        p = book_title[p][u].first;
+    }
+    book_title[p][u].second.push_back(ptr);
+}
+
+vector<Book*>& Library::query_by_title(string title)
+{
+    int p = 0, u;
+    for (int i = 0; title[i]; i++)
+    {
+        u = title[i] - ' ';
+        if (!book_title[p][u].first){
+            return ERROR;
+        }
+        p = book_title[p][u].first;
+    }
+    return book_title[p][u].second;
+}
+
+bool Library::check_identity(string pass) {
+    if (pass == password)
+        return true;
+    else return false;
+}
+
+vector<Book*>& Library::query_by_author(string au)
+{
+    int p = 0;
+    int u = 0;
+    for (int i = 0; au[i]; i++)
+    {
+        u = au[i] - ' ';
+        if (!author[p][u].first){
+            return ERROR;
+        }
+        p = author[p][u].first;
+    }
+    return author[p][u].second;
+}
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <cstdio>
+#include <iostream>
+#include <map>
+#include <queue>
+#include <stdlib.h>
+#include <stack>
+#include <string>
+#include <time.h>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+using namespace std;
+int idxt = 0, idxa = 0, idx_reader;
+
+const int MAX = 1e5;
+
+void print() {
+    cout << "****************************************\n";
+}
+struct Date {
+    int yy, mm, dd;
+};
+
+class Book {
+    friend class Reader;
+    friend class Library;
+private:
+    int ID;
+    Date borrow_date;
+    Date due_date;
+    static int idnow;
+    string reader;
+public:
+    double price;
+    bool available;
+    string title;
+    string author;
+    Book(string t, string a, double p) {
+        ID = idnow++;
+        title = t;
+        author = a;
+        price = p;
+        available = true;
+    }
+    void print() {
+        cout << "****************************************\n";
+        cout << "The book's information are as follows: \n";
+        cout << "ID: " << ID << "\n";
+        cout << "Title: " << title << "\n";
+        cout << "Author: " << author << "\n";
+        cout << "Price: " << price << "\n";
+        if (available) {
+            cout << "The book can be borrowed now!\n";
+        }
+        else {
+            cout << "The book can not be borrowed now!\n";
+        }
+        cout << "****************************************\n";
+    }
+};
+
+vector<Book *> ERROR;
+
+int Book::idnow = 1;
+
+typedef pair<int, vector<Book*>> PIV;
+typedef pair<string, string> PSS;
+typedef pair<int, int> PII;
+typedef pair<int, Book*> PIB;
+
+class Library {
+private:
+    string password;
+public:
+    Library(string pass){
+        password = pass;
+    }
+    PIV author[MAX][100];
+    PIV book_title[MAX][100];
+    void add();
+    friend class Reader;
+    void insert_by_tittle(Book* ptr);
+    void insert_by_author(Book* ptr);
+    vector<Book*>& query_by_title(string title);
+    vector<Book*>& query_by_author(string author);
+    void get_detail(string, string);
+    bool check_identity(string);
+};
+
+Library library("zrj");
+
+class Reader {
+    friend Book;
+    friend Library;
+public:
+    Reader(string name_, int id) {
+        name = name_;
+        ID = id;
+    }
+    void check();
+    void return_book(string s);
+    void borrow_book(string s);
+    void find_book_title(string s);
+    void find_book_author(string s);
+private:
+    int ID;
+    int telephone;
+    string name;
+    vector<Book*> borrow_book_list;
+};
+
+const time_t t = time(NULL);
+struct tm timeinfo;
+const time_t now = time(NULL);
+struct tm* current_time = localtime(&t);
+
+void Reader::check()
+{
+    if (borrow_book_list.size() == 0)
+        cout << "You have not borrowed any book yet! " << endl;
+    else
+    {
+        cout << "That is all the books you borrowed:" << endl;
+        for (auto it : borrow_book_list)
+        {
+            cout << (*it).title << " ,And its due date is " << current_time->tm_year+1900 << "-" << current_time->tm_mon+2 << "-" << current_time->tm_wday+28 << endl;
+        }
+    }
+    cout << endl;
+}
+
+void Reader::borrow_book(string s)
+{
+    bool flag = 0;
+    vector<Book*> book = library.query_by_title(s);
+    if (book.size() == 0){
+        cout << "Sorry we do not have this book!" << endl;
+        return;
+        }
+    else
+    {
+        for (auto it = book.begin(); it != book.end(); ++it)
+        {
+            if ((*it)->available == true)
+            {
+                flag = 1;
+                (*it)->available = false;
+                borrow_book_list.push_back(*it);
+                Date bo, re;
+                bo.dd = current_time->tm_wday;
+                bo.mm = current_time->tm_mon;
+                bo.yy = current_time->tm_year;
+                re.dd = current_time->tm_wday;
+                re.mm = current_time->tm_mon + 1;
+                re.yy = current_time->tm_year;
+                (*it)->borrow_date = bo; (*it)->due_date = re;
+                (*it)->borrow_date.dd = bo.dd;
+                (*it)->borrow_date.yy = bo.yy;
+                (*it)->borrow_date.mm = bo.mm;
+                (*it)->due_date.dd = re.dd;
+                (*it)->due_date.mm = re.mm;
+                (*it)->due_date.yy = re.yy;
+                printf("The time now is：%d-%d-%d %d:%d:%d\n",
+                    current_time->tm_year + 1900,
+                    current_time->tm_mon + 1,
+                    current_time->tm_mday,
+                    current_time->tm_hour,
+                    current_time->tm_min,
+                    current_time->tm_sec);
+                cout << "You may as well return your book a month later!" << endl;
+                cout << "You are supposed to return your book before ";
+                printf("%d-%d-%d %d:%d:%d\n",
+                    current_time->tm_year + 1900,
+                    current_time->tm_mon + 2,
+                    current_time->tm_mday,
+                    current_time->tm_hour,
+                    current_time->tm_min,
+                    current_time->tm_sec);
+                cout << "Borrowed successfully!" << endl;
+                break;
+            }
+        }
+    }
+    if (flag == 0)
+        cout << "All of this books are borrowed!" << endl;
+}
+
+void Reader::return_book(string s)
+{
+    bool flag = 0;
+    for (auto it = borrow_book_list.begin(); it != borrow_book_list.end(); ++it)
+    {
+        if ((*it)->title == s)
+        {
+            flag = 1;
+            (*it)->available = true;
+            borrow_book_list.erase(it);
+            cout << "Returned successfully!" << endl;
+            return;
+        }
+    }
+    if (flag == 0)
+        cout << "You have not borrowed this book!" << endl;
+}
+
+void Library::add()
+{
+    cout << "Please give this book's title,author and number and its price!" << endl;
+    cout << "(one line by one line,4 lines please!" << endl;
+    string t, a; int n; float p;
+    getchar();
+    getline(cin, t);
+    getline(cin, a);
+    cin >> n >> p;
+    getchar();
+    while (n--)
+    {
+        Book* x = new Book(t, a, p);
+        insert_by_author(x);
+        insert_by_tittle(x);
+    }
+    cout<<"Added successfully!";cout<<endl;
+    cout << endl;
+}
+
+void Library::insert_by_author(Book* ptr)
+{
+    int p = 0, u;
+    string& str = ptr->author;
+    for (int i = 0; str[i]; i++)
+    {
+        u = str[i] - ' ';
+        if (!author[p][u].first) author[p][u].first = ++idxa;
+        p = author[p][u].first;
+    }
+    author[p][u].second.push_back(ptr);
+}
+
+void Library::insert_by_tittle(Book* ptr)
+{
+    int p = 0, u;
+    string& str = ptr->title;
+    for (int i = 0; str[i]; i++)
+    {
+        u = str[i] - ' ';
+        if (!book_title[p][u].first) book_title[p][u].first = ++idxt;
+        p = book_title[p][u].first;
+    }
+    book_title[p][u].second.push_back(ptr);
+}
+
+vector<Book*>& Library::query_by_title(string title)
+{
+    int p = 0, u;
+    for (int i = 0; title[i]; i++)
+    {
+        u = title[i] - ' ';
+        if (!book_title[p][u].first){
+            return ERROR;
+        }
+        p = book_title[p][u].first;
+    }
+    return book_title[p][u].second;
+}
+
+bool Library::check_identity(string pass) {
+    if (pass == password)
+        return true;
+    else return false;
+}
+
+vector<Book*>& Library::query_by_author(string au)
+{
+    int p = 0;
+    int u = 0;
+    for (int i = 0; au[i]; i++)
+    {
+        u = au[i] - ' ';
+        if (!author[p][u].first){
+            return ERROR;
+        }
+        p = author[p][u].first;
+    }
+    return author[p][u].second;
+}
+
+int main() {
+    unordered_map <string, Reader*> reader_map;
+    cout << "This is a library's books manage system!" << endl;
+    cout << "Remember to press \"-1\" to qiut!" << endl << endl;
+    cout << "There are eight services:" << endl;
+    cout << "1:Search for a book by its title." << endl;
+    cout << "2:Search for a book by its author." << endl;
+    cout << "3:Borrow a specific book." << endl;
+    cout << "4:Return a specific book." << endl;
+    cout << "5:(librarian only) Add a book." << endl;
+    cout << "6.Show all the books you have borrowed." << endl;
+
+    while (true) {
+        cout << "Please choose your service!" << endl;
+        string choice;
+        getline(cin, choice);
+        switch (choice[0] - '0') {
+        case 1: {
+            cout << "What is the book's title?" << endl;
+            unordered_map <string, int> st;
+            string s;
+            getline(cin, s);
+            vector <Book*> book;
+            book = library.query_by_title(s);
+            for (auto& i : book){
+                if(!st.count(i->title + i->author)){
+                    i->print();
+                    st[i->title + i->author] = 1;
+                }
+            }
+            break;
+        }
+        case 2: {
+            cout << "Who is the author?" << endl;
+            string s;
+            getline(cin, s);
+            vector <Book*> author;
+            unordered_map <string, int> st;
+            author = library.query_by_author(s);
+            for (auto& i : author){
+                if(!st.count(i->title + i->author)){
+                    i->print();
+                    st[i->title + i->author] = 1;
+                }
+            }
+            break;
+        }
+        case 3: {
+            cout << "What's your name?" << endl;
+            string name;
+            Reader* reader;
+            getline(cin, name);
+            if (!reader_map.count(name)) {
+                cout << "New account signed up" << endl;
+                ++idx_reader;
+                reader = new Reader(name, idx_reader);
+                reader_map[name] = reader;
+            }
+            reader = reader_map[name];
+            cout << "Which book you want to borrow?" << endl;
+            string book_name;
+            getline(cin, book_name);
+            reader->borrow_book(book_name);
+            break;
+        }
+        case 4: {
+            cout << "What's your name?" << endl;
+            string name;
+            Reader* reader;
+            getline(cin, name);
+            if (!reader_map.count(name)) {
+                cout << "No account!" << endl;
+                continue;
+            }
+            reader = reader_map[name];
+            cout << "Which book you want to return?" << endl;
+            string book_name;
+            getline(cin, book_name);
+            reader->return_book(book_name);
+            break;
+        }
+        case 5: {
+            cout << "Identity Vertify:" << endl;
+            cout << "Please input the password:" << endl;
+            string password;
+            cin >> password;
+            if (library.check_identity(password)) {
+                library.add();
+            }
+            else {
+                cout << "Password False!" << endl;
+                continue;
+            }
+            break;
+        }
+        case 6: {
+            cout << "What's your name?" << endl;
+            string name;
+            Reader* reader;
+            getline(cin, name);
+            if (!reader_map.count(name)) {
+                cout << "No account!" << endl;
+                continue;
+            }
+            reader = reader_map[name];
+            reader->check();
+            cout << endl;
+            break;
+        }
+        case -1:{
+            cout << "Bye Bye!" << endl;
+            return 1;
+              }
+        default :
+            cout << "Only 1-6 and -1 is valid!" << endl;
+            break;
+        }
+    }
+    return 0;
+}
+
